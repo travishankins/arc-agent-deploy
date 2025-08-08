@@ -1,53 +1,72 @@
-# Azure Arc Onboarding (via GPO or manual)
+# Azure Arc GPO Onboarding
 
-PowerShell script to onboard Windows Servers to **Azure Arc**.  
-It installs/updates the **Connected Machine Agent (CMA)**, then runs `azcmagent connect` using values from `ArcInfo.json`.
+This repository contains a PowerShell script and instructions for onboarding Windows Servers to Azure Arc using Group Policy (GPO).
 
-## What the script does (quick flow)
+## Overview
 
-1. **Resolve config**
-   - Reads `ArcInfo.json` from your share (tenant, subscription, RG, location, SPN ID, optional Private Link scope, proxy, tags).
-   - Optionally decrypts the SPN **secret** from `encryptedServicePrincipalSecret` using `AzureArcDeployment.psm1` (DPAPI).  
-     Fallback: `ServicePrincipalSecretPlain` in `ArcInfo.json` (not recommended for long-term).
+The script is designed to be deployed via a GPO Scheduled Task and supports:
 
-2. **Install/Update the agent**
-   - Tries to **download the latest CMA** from Microsoft (`https://aka.ms/AzureConnectedMachineAgent`) to a local work folder.
-   - Reads the MSI **ProductVersion** and compares it to the installed agent version.
-   - **If the downloaded version is newer** → installs/upgrades silently.
-   - **If download fails** (no internet, proxy issues) → **falls back to your UNC copy** of the MSI.
-   - Skips install if the installed version is already the same or newer.
+- **Automatic installation or upgrade** of the Azure Connected Machine Agent (CMA)  
+  - Attempts to download the latest CMA from Microsoft  
+  - Falls back to a UNC share if direct download fails  
+- **Service Principal authentication** for non-interactive onboarding  
+  - Securely decrypts the service principal secret from `encryptedServicePrincipalSecret`  
+  - Falls back to a plain-text value in `ArcInfo.json` (for testing only)  
+- **Custom tagging** of onboarded servers from values in `ArcInfo.json`  
+- **Proxy configuration** (optional)
 
-3. **Connect to Azure Arc**
-   - Applies optional proxy and bypass (“Arc”) settings.
-   - Runs `azcmagent connect` with tags (default adds `DeployedBy='GPO'` + any tags from `ArcInfo.json`).
-   - Verifies status with `azcmagent show/check` and the local agentstatus endpoint.
+## File Structure
 
-## Default paths in this repo/example
+- `Onboard-AzureArc.ps1` – Main onboarding script  
+- `ArcInfo.json` – Configuration file containing:
+  - Tenant ID
+  - Subscription ID
+  - Resource Group
+  - Location
+  - Service Principal Client ID
+  - Tags (optional)
+- `AzureArcDeployment.psm1` – Module with DPAPI decryption logic  
+- `encryptedServicePrincipalSecret` – Encrypted service principal secret  
+- `AzureConnectedMachineAgent.msi` – (Optional) Offline CMA installer
 
-- UNC base: `\\lvdc-dc02\netlogon\Global\Arc\AzureArcDeploy`
-- Files you store there:
-  - `ArcInfo.json`
-  - `AzureArcDeployment.psm1`
-  - `encryptedServicePrincipalSecret`
-  - `AzureConnectedMachineAgent.msi` *(fallback copy; keep it reasonably current)*
-- The script writes a temporary MSI to a local work folder (e.g., `C:\Temp\ArcAgent\AzureConnectedMachineAgent.msi`) and runs the install from there.
+## How It Works
 
-## ArcInfo.json (example)
+1. **Reads `ArcInfo.json`** from a UNC path (e.g., `\\<domain>\NETLOGON\ArcDeploy`).
+2. **Decrypts the SP secret** from `encryptedServicePrincipalSecret` if present.
+3. **Downloads the latest CMA** from Microsoft’s official endpoint.
+4. **Installs or updates the agent** if a newer version is found.
+5. **Connects the machine to Azure Arc** using:
+   - Resource name (local hostname)
+   - Service Principal credentials
+   - Configured subscription, resource group, location
+6. **Applies tags** from `ArcInfo.json`.
+
+## GPO Deployment
+
+1. Copy the following to a domain-accessible share (e.g., `\\<domain>\NETLOGON\ArcDeploy`):
+   - Script (`Onboard-AzureArc.ps1`)
+   - `ArcInfo.json`
+   - `AzureArcDeployment.psm1`
+   - `encryptedServicePrincipalSecret`
+   - `AzureConnectedMachineAgent.msi` (optional)
+2. Create a Scheduled Task in GPO to run the script:
+   - Action: **Start a Program**
+   - Program: `powershell.exe`
+   - Arguments: `-ExecutionPolicy Bypass -File "\\<domain>\NETLOGON\ArcDeploy\Onboard-AzureArc.ps1"`
+   - Run as **SYSTEM**
+3. Link the GPO to the target OU.
+
+## Example `ArcInfo.json`
 
 ```json
 {
-  "ServicePrincipalClientId": "00000000-0000-0000-0000-000000000000",
   "TenantId": "00000000-0000-0000-0000-000000000000",
   "SubscriptionId": "00000000-0000-0000-0000-000000000000",
   "ResourceGroup": "Arc-Servers",
   "Location": "eastus",
-  "PrivateLinkScopeId": "",
-  "ProxyUrl": "",
+  "ServicePrincipalClientId": "00000000-0000-0000-0000-000000000000",
   "Tags": {
     "Environment": "Prod",
     "Owner": "IT"
   }
-
-  // Optional, short-term only:
-  // "ServicePrincipalSecretPlain": "your-sp-secret"
 }
