@@ -1,0 +1,16 @@
+{
+  "ServicePrincipalClientId": "00000000-0000-0000-0000-000000000000",
+  "TenantId": "00000000-0000-0000-0000-000000000000",
+  "SubscriptionId": "00000000-0000-0000-0000-000000000000",
+  "ResourceGroup": "Arc-Servers",
+  "Location": "eastus",
+  "PrivateLinkScopeId": "",
+  "ProxyUrl": "",
+  "Tags": {
+    "Environment": "Prod",
+    "Owner": "IT"
+  }
+
+  // Optional, short-term only:
+  // "ServicePrincipalSecretPlain": "your-sp-secret"
+}
