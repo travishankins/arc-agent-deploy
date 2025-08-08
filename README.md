@@ -25,7 +25,6 @@ The script is designed to be deployed via a GPO Scheduled Task and supports:
   - Location
   - Service Principal Client ID
   - Tags (optional)
-- `AzureArcDeployment.psm1` – Module with DPAPI decryption logic  
 - `encryptedServicePrincipalSecret` – Encrypted service principal secret  
 - `AzureConnectedMachineAgent.msi` – (Optional) Offline CMA installer
 
