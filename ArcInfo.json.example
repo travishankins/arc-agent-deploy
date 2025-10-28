@@ -7,10 +7,10 @@
   "PrivateLinkScopeId": "",
   "ProxyUrl": "",
   "Tags": {
-    "Environment": "Prod",
-    "Owner": "IT"
+    "Environment": "Production",
+    "ManagedBy": "GPO",
+    "Department": "IT",
+    "CostCenter": "CC-1234"
   }
-
-  // Optional, short-term only:
-  // "ServicePrincipalSecretPlain": "your-sp-secret"
 }
+
